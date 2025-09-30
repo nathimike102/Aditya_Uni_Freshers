@@ -1,0 +1,24 @@
+{
+  "name": "Aditya University - Freshers Welcome 2025",
+  "short_name": "Aditya Freshers",
+  "description": "Official ticket system for Aditya University International Students Freshers Welcome Event 2025",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e1b4b",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/party.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/party.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
