@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { User, Mail, Lock, UserPlus, LogIn, PartyPopper, Sparkles } from 'lucide-react';
 
@@ -30,7 +30,22 @@ const Login = ({ onLogin }) => {
 
   React.useEffect(() => {
     clearForm();
-  }, []);
+    
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          clearForm();
+          onLogin(result.user, result.user.displayName || 'Guest');
+        }
+      } catch (error) {
+        console.error('Redirect result error:', error);
+        setError(`Sign-in failed: ${error.message}`);
+      }
+    };
+    
+    handleRedirectResult();
+  }, [onLogin]);
 
   React.useEffect(() => {
     const handleFocus = () => {
@@ -79,14 +94,52 @@ const Login = ({ onLogin }) => {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
+    
+    console.log('Starting Google Sign-In...');
 
     try {
+      // Check if we're on mobile or small screen
+      const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        console.log('Using redirect method for mobile device');
+        await signInWithRedirect(auth, googleProvider);
+        return; // Redirect will handle the rest
+      }
+      
+      console.log('Using popup method for desktop');
+      // Try popup first for desktop
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
+      console.log('Google Sign-In successful:', user.email);
       clearForm();
       onLogin(user, user.displayName || 'Guest');
     } catch (error) {
-      setError(error.message);
+      
+      switch (error.code) {
+        case 'auth/popup-blocked':
+          console.log('Popup blocked, trying redirect method');
+          try {
+            await signInWithRedirect(auth, googleProvider);
+          } catch (redirectError) {
+            console.error('Redirect Sign-In Error:', redirectError);
+            setError('Sign-in was blocked. Please allow popups for this site or try again.');
+          }
+          break;
+          
+        case 'auth/popup-closed-by-user':
+          setError('Sign-in was cancelled. Please try again.');
+          break;
+          
+        case 'auth/unauthorized-domain':
+          const currentDomain = window.location.hostname + ':' + window.location.port;
+          setError(`Domain "${currentDomain}" is not authorized. Add this domain to Firebase Console → Authentication → Settings → Authorized domains.`);
+          console.log('Current domain that needs to be authorized:', currentDomain);
+          break;
+          
+        default:
+          setError(`Sign-in failed: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }

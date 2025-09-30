@@ -21,8 +21,12 @@ export const database = getDatabase(app);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  hd: 'gmail.com'
 });
+
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 
 const DEFAULT_EVENT_DETAILS = {
   eventName: 'Freshers Welcome 2025',
