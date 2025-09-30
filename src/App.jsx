@@ -25,6 +25,21 @@ function App() {
         const adminStatus = ADMIN_CONFIG.isAdmin(user.email);
         setIsAdmin(adminStatus);
         
+        // Load user profile data to get persisted display name
+        try {
+          const userProfile = await realtimeDB.getUserProfile(user.uid);
+          if (userProfile && userProfile.displayName) {
+            console.log('Loaded user profile:', userProfile.displayName);
+            setUserName(userProfile.displayName);
+          } else {
+            // Fallback to Firebase user data
+            setUserName(user.displayName || 'Guest');
+          }
+        } catch (profileError) {
+          console.error('Failed to load user profile:', profileError);
+          setUserName(user.displayName || 'Guest');
+        }
+        
         if (!adminStatus) {
           try {
             const existingTickets = await realtimeDB.getTickets(user.uid);
@@ -33,9 +48,12 @@ function App() {
               setCurrentView('tickets');
             }
           } catch (error) {
-
+            console.error('Failed to load tickets:', error);
           }
         }
+      } else {
+        // Clear user name when logged out
+        setUserName('');
       }
       setLoading(false);
     });
@@ -72,10 +90,21 @@ function App() {
     }
   }, [user, isAdmin]);
 
-  const handleLogin = (user, name) => {
+  const handleLogin = async (user, name) => {
     setUser(user);
-    setUserName(name);
     setIsAdmin(ADMIN_CONFIG.isAdmin(user.email));
+    
+    try {
+      const userProfile = await realtimeDB.getUserProfile(user.uid);
+      if (userProfile && userProfile.displayName) {
+        setUserName(userProfile.displayName);
+      } else {
+        setUserName(name);
+      }
+    } catch (error) {
+      console.error('Failed to load user profile on login:', error);
+      setUserName(name);
+    }
   };
 
   const handleLogout = async () => {

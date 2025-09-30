@@ -335,6 +335,52 @@ export const realtimeDB = {
         throw error;
       }
     }
+  },
+
+  saveUserProfile: async (userId, profileData) => {
+    try {
+      const userProfileRef = ref(database, `userProfiles/${userId}`);
+      const profileWithMetadata = {
+        ...profileData,
+        createdAt: profileData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      await set(userProfileRef, profileWithMetadata);
+      return profileWithMetadata;
+    } catch (error) {
+      console.error('Error saving user profile:', error);
+      throw error;
+    }
+  },
+
+  getUserProfile: async (userId) => {
+    try {
+      const userProfileRef = ref(database, `userProfiles/${userId}`);
+      const snapshot = await get(userProfileRef);
+      
+      if (snapshot.exists()) {
+        return snapshot.val();
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
+  },
+
+  updateUserProfile: async (userId, updates) => {
+    try {
+      const userProfileRef = ref(database, `userProfiles/${userId}`);
+      const updatedData = {
+        ...updates,
+        updatedAt: new Date().toISOString()
+      };
+      await update(userProfileRef, updatedData);
+      return updatedData;
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
   }
 };
 

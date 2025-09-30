@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { auth, googleProvider } from '../firebase';
+import { auth, googleProvider, realtimeDB } from '../firebase';
 import { User, Mail, Lock, UserPlus, LogIn, PartyPopper, Sparkles } from 'lucide-react';
 
 const Login = ({ onLogin }) => {
@@ -31,12 +31,41 @@ const Login = ({ onLogin }) => {
   React.useEffect(() => {
     const handleRedirectResult = async () => {
       try {
+        console.log('Checking for redirect result...');
         setLoading(true);
+        await new Promise(resolve => setTimeout(resolve, 500));
         const result = await getRedirectResult(auth);
+        sessionStorage.removeItem('googleSignInInProgress');
         if (result && result.user) {
-          console.log('Redirect sign-in successful:', result.user.email);
+          const profileData = {
+            uid: result.user.uid,
+            email: result.user.email,
+            displayName: result.user.displayName || 'Guest',
+            photoURL: result.user.photoURL,
+            provider: 'google',
+            lastLoginAt: new Date().toISOString()
+          };
+          
+          try {
+            const existingProfile = await realtimeDB.getUserProfile(result.user.uid);
+            if (existingProfile) {
+              await realtimeDB.updateUserProfile(result.user.uid, {
+                lastLoginAt: new Date().toISOString(),
+                photoURL: result.user.photoURL
+              });
+            } else {
+              profileData.createdAt = new Date().toISOString();
+              await realtimeDB.saveUserProfile(result.user.uid, profileData);
+            }
+            console.log('User profile saved/updated successfully');
+          } catch (profileError) {
+            console.error('Failed to save user profile:', profileError);
+          }
+          
           clearForm();
           onLogin(result.user, result.user.displayName || 'Guest');
+        } else {
+          console.log('No redirect result found');
         }
       } catch (error) {
         console.error('Redirect result error:', error);
@@ -44,6 +73,8 @@ const Login = ({ onLogin }) => {
           setError('Network connection error. Please check your internet and try again.');
         } else if (error.code === 'auth/popup-closed-by-user') {
           setError('Sign-in was cancelled. Please try again.');
+        } else if (error.code === 'auth/account-exists-with-different-credential') {
+          setError('An account with this email already exists. Try signing in with email/password.');
         } else {
           setError(`Sign-in failed: ${error.message}`);
         }
@@ -57,6 +88,11 @@ const Login = ({ onLogin }) => {
 
   React.useEffect(() => {
     clearForm();
+    const signInInProgress = sessionStorage.getItem('googleSignInInProgress');
+    if (signInInProgress === 'true') {
+      console.log('Detected Google sign-in in progress, setting loading state');
+      setLoading(true);
+    }
   }, []);
 
 
@@ -67,16 +103,51 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
+      let userCredential;
+      let profileData;
+
       if (isSignUp) {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        
+        profileData = {
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          displayName: name,
+          provider: 'email',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString()
+        };
+        
+        try {
+          await realtimeDB.saveUserProfile(userCredential.user.uid, profileData);
+          console.log('New user profile created and saved');
+        } catch (profileError) {
+          console.error('Failed to save new user profile:', profileError);
+        }
+        
         clearForm();
         onLogin(userCredential.user, name);
       } else {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        clearForm();
-        onLogin(userCredential.user, name || userCredential.user.displayName || 'Guest');
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        
+        try {
+          await realtimeDB.updateUserProfile(userCredential.user.uid, {
+            lastLoginAt: new Date().toISOString()
+          });
+          
+          const existingProfile = await realtimeDB.getUserProfile(userCredential.user.uid);
+          const displayName = existingProfile?.displayName || userCredential.user.displayName || name || 'Guest';
+          
+          clearForm();
+          onLogin(userCredential.user, displayName);
+        } catch (profileError) {
+          console.error('Failed to update user profile:', profileError);
+          clearForm();
+          onLogin(userCredential.user, userCredential.user.displayName || name || 'Guest');
+        }
       }
     } catch (error) {
+      console.error('Authentication error:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -97,15 +168,20 @@ const Login = ({ onLogin }) => {
       
       if (isMobile) {
         console.log('Using redirect method for mobile device');
-        setTimeout(async () => {
-          try {
-            await signInWithRedirect(auth, googleProvider);
-          } catch (redirectError) {
-            console.error('Mobile Redirect Sign-In Error:', redirectError);
-            setError('Sign-in failed on mobile. Please try again.');
-            setLoading(false);
-          }
-        }, 100);
+        
+        const button = document.activeElement;
+        if (button) button.disabled = true;
+        sessionStorage.setItem('googleSignInInProgress', 'true');
+        
+        try {
+          await signInWithRedirect(auth, googleProvider);
+        } catch (redirectError) {
+          console.error('Mobile Redirect Sign-In Error:', redirectError);
+          setError('Sign-in failed on mobile. Please try again.');
+          sessionStorage.removeItem('googleSignInInProgress');
+          if (button) button.disabled = false;
+          setLoading(false);
+        }
         return;
       }
       
@@ -113,6 +189,32 @@ const Login = ({ onLogin }) => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       console.log('Google Sign-In successful:', user.email);
+      
+      const profileData = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || 'Guest',
+        photoURL: user.photoURL,
+        provider: 'google',
+        lastLoginAt: new Date().toISOString()
+      };
+      
+      try {
+        const existingProfile = await realtimeDB.getUserProfile(user.uid);
+        if (existingProfile) {
+          await realtimeDB.updateUserProfile(user.uid, {
+            lastLoginAt: new Date().toISOString(),
+            photoURL: user.photoURL
+          });
+        } else {
+          profileData.createdAt = new Date().toISOString();
+          await realtimeDB.saveUserProfile(user.uid, profileData);
+        }
+        console.log('Google user profile saved/updated successfully');
+      } catch (profileError) {
+        console.error('Failed to save Google user profile:', profileError);
+      }
+      
       clearForm();
       onLogin(user, user.displayName || 'Guest');
     } catch (error) {
@@ -261,7 +363,12 @@ const Login = ({ onLogin }) => {
           className="w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border border-white/20 touch-manipulation active:scale-95"
         >
           {loading ? (
-            <div className="w-6 h-6 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+            <>
+              <div className="w-6 h-6 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>
+              <span>
+                {sessionStorage.getItem('googleSignInInProgress') === 'true' ? 'Redirecting...' : 'Signing in...'}
+              </span>
+            </>
           ) : (
             <>
               <svg className="w-6 h-6" viewBox="0 0 24 24">

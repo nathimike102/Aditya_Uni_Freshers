@@ -220,7 +220,7 @@ const TicketPurchase = ({ user, userName, onTicketPurchased }) => {
               ) : (
                 <>
                   <Ticket className="w-7 h-7" />
-                  <span>Get My Ticket! �️</span>
+                  <span>Get My Ticket! 🎟️</span>
                 </>
               )}
             </button>

@@ -21,20 +21,38 @@ const TicketVerification = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [eventDetails, setEventDetails] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
 
   useEffect(() => {
+    const debug = {
+      ticketId,
+      currentURL: window.location.href,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      hash: window.location.hash
+    };
+    
+    console.log('TicketVerification mounted:', debug);
+    setDebugInfo(debug);
+    
     if (ticketId) {
       verifyTicket();
       loadEventDetails();
+    } else {
+      setError('No ticket ID provided in URL');
+      setLoading(false);
     }
   }, [ticketId]);
 
   const loadEventDetails = async () => {
     try {
+      console.log('Loading event details...');
       const details = await realtimeDB.admin.getEventDetails();
+      console.log('Event details loaded:', details);
       setEventDetails(details);
     } catch (error) {
       console.error('Error loading event details:', error);
+      // Don't fail the whole verification if event details can't load
     }
   };
 
@@ -43,18 +61,51 @@ const TicketVerification = () => {
     setError('');
 
     try {
-      const allTickets = await realtimeDB.admin.getAllTickets();
-      const foundTicket = allTickets.find(t => t.id === ticketId);
-
-      if (!foundTicket) {
-        setError('Ticket not found. Please verify the ticket ID.');
+      console.log('Verifying ticket with ID:', ticketId);
+      console.log('Firebase config check:', !!realtimeDB);
+      
+      if (!navigator.onLine) {
+        setError('No internet connection. Please check your network and try again.');
         return;
       }
 
-      setTicket(foundTicket);
+      const result = await realtimeDB.findTicket(ticketId);
+      console.log('Find ticket result:', result);
+
+      if (!result || !result.ticket) {
+        console.log('Trying fallback method...');
+        try {
+          const allTickets = await realtimeDB.admin.getAllTickets();
+          console.log('Fallback: Retrieved tickets count:', allTickets.length);
+          const foundTicket = allTickets.find(t => t.id === ticketId);
+          
+          if (foundTicket) {
+            setTicket(foundTicket);
+            console.log('Ticket found via fallback method');
+            return;
+          }
+        } catch (fallbackError) {
+          console.log('Fallback method also failed:', fallbackError);
+        }
+        
+        setError(`Ticket not found. Please verify the ticket ID: ${ticketId}`);
+        return;
+      }
+
+      setTicket(result.ticket);
+      console.log('Ticket verification successful:', result.ticket);
     } catch (error) {
       console.error('Error verifying ticket:', error);
-      setError('Failed to verify ticket. Please try again later.');
+      
+      if (error.code === 'permission-denied') {
+        setError('Permission denied. This might be a Firebase security rules issue.');
+      } else if (error.code === 'network-error' || error.message.includes('network')) {
+        setError('Network error. Please check your internet connection and try again.');
+      } else if (error.code === 'unavailable') {
+        setError('Service temporarily unavailable. Please try again in a moment.');
+      } else {
+        setError(`Failed to verify ticket: ${error.message}. Please try again later.`);
+      }
     } finally {
       setLoading(false);
     }
@@ -116,12 +167,57 @@ const TicketVerification = () => {
           <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-4">Verification Failed</h1>
           <p className="text-red-200 mb-6">{error}</p>
-          <button 
-            onClick={verifyTicket}
-            className="btn-primary w-full"
-          >
-            Try Again
-          </button>
+          {debugInfo && (
+            <div className="bg-slate-800/50 rounded-lg p-4 mb-4 text-left text-sm">
+              <h3 className="text-white font-semibold mb-2">Debug Info:</h3>
+              <div className="text-slate-300 space-y-1">
+                <p><strong>Ticket ID:</strong> {debugInfo.ticketId || 'Not found'}</p>
+                <p><strong>Current URL:</strong> {debugInfo.currentURL}</p>
+                <p><strong>Path:</strong> {debugInfo.pathname}</p>
+                <p><strong>Online:</strong> {navigator.onLine ? 'Yes' : 'No'}</p>
+                <p><strong>Firebase:</strong> {!!realtimeDB ? 'Connected' : 'Not connected'}</p>
+                <p><strong>Timestamp:</strong> {new Date().toLocaleString()}</p>
+              </div>
+              
+              <div className="mt-3 pt-3 border-t border-slate-600">
+                <p className="text-xs text-slate-400">
+                  If the ticket ID is correct and you're online, this might be a Firebase permissions issue.
+                  Try refreshing or contact support.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <button 
+              onClick={verifyTicket}
+              className="btn-primary w-full"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={async () => {
+                try {
+                  console.log('Testing Firebase connection...');
+                  const eventDetails = await realtimeDB.admin.getEventDetails();
+                  console.log('Firebase test successful:', eventDetails);
+                  alert('Firebase connection test successful! Check console for details.');
+                } catch (error) {
+                  console.error('Firebase test failed:', error);
+                  alert(`Firebase test failed: ${error.message}`);
+                }
+              }}
+              className="btn-secondary w-full text-xs"
+            >
+              Test Firebase Connection
+            </button>
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="btn-secondary w-full"
+            >
+              Go to Home
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -157,9 +253,7 @@ const TicketVerification = () => {
           </div>
         </div>
 
-        {/* Ticket Details */}
         <div className="glass-effect rounded-2xl overflow-hidden border border-white/20">
-          {/* Event Header */}
           <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 p-8 text-white">
             <div className="flex justify-between items-start">
               <div>
@@ -173,7 +267,6 @@ const TicketVerification = () => {
             </div>
           </div>
 
-          {/* Ticket Content */}
           <div className="p-8">
             <div className="grid md:grid-cols-2 gap-8">
               {/* Event Information */}
@@ -223,7 +316,6 @@ const TicketVerification = () => {
                   </div>
                 </div>
 
-                {/* Purchase Information */}
                 <div className="glass-effect border border-purple-300/30 rounded-xl p-4 mt-6">
                   <h4 className="font-semibold text-purple-300 mb-3">Purchase Details</h4>
                   <div className="space-y-2 text-sm">
@@ -246,7 +338,6 @@ const TicketVerification = () => {
                 </div>
               </div>
 
-              {/* QR Code Section */}
               <div className="text-center">
                 <div className="glass-effect p-6 rounded-xl border border-white/20">
                   <div className="w-48 h-48 bg-white rounded-xl flex items-center justify-center mx-auto mb-4">
@@ -261,7 +352,6 @@ const TicketVerification = () => {
                   </p>
                 </div>
 
-                {/* Action Button */}
                 <div className="mt-6">
                   <a
                     href={`${window.location.origin}`}
@@ -274,7 +364,6 @@ const TicketVerification = () => {
               </div>
             </div>
 
-            {/* Event Description */}
             <div className="glass-effect border border-purple-300/30 rounded-xl p-6 mt-8">
               <h4 className="font-semibold text-purple-300 mb-4 flex items-center">
                 <PartyPopper className="w-5 h-5 mr-2" />
@@ -287,7 +376,6 @@ const TicketVerification = () => {
               </p>
             </div>
 
-            {/* Important Notes */}
             <div className="glass-effect border border-yellow-300/30 rounded-xl p-6 mt-6">
               <h4 className="font-semibold text-yellow-200 mb-3">Important Notes:</h4>
               <ul className="text-yellow-100 space-y-2">
@@ -301,7 +389,6 @@ const TicketVerification = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-8 text-white/60">
           <p className="mb-2">© 2025 Aditya University - Official Event Ticketing System</p>
           <p className="text-sm">For support, contact the event organizers</p>
