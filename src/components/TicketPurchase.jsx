@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { realtimeDB } from '../firebase';
 import { v4 as uuidv4 } from 'uuid';
 import { Ticket, PartyPopper, Sparkles } from 'lucide-react';
+import Logger from '../utils/logger';
 
 const TicketPurchase = ({ user, userName, onTicketPurchased }) => {
   const [accessKey, setAccessKey] = useState('');
@@ -61,9 +62,9 @@ const TicketPurchase = ({ user, userName, onTicketPurchased }) => {
         user.uid
       );
 
-      console.log('Key validation successful:', keyValidation);
+      Logger.debug('Key validation successful:', keyValidation);
     } catch (keyError) {
-      console.error('Key validation failed:', keyError);
+      Logger.error('Key validation failed:', keyError);
       let errorMessage = keyError.message;
       
       if (errorMessage.includes('Invalid or inactive')) {

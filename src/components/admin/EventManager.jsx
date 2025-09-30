@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, MapPin, DollarSign, Save, RefreshCw, Edit3, PartyPopper, Sparkles } from 'lucide-react';
 import { realtimeDB } from '../../firebase';
+import Logger from '../../utils/logger';
 
 const EventManager = () => {
   const [eventDetails, setEventDetails] = useState({
@@ -87,7 +88,7 @@ const EventManager = () => {
       
       return `${hours.toString().padStart(2, '0')}:${minutes}`;
     } catch (error) {
-      console.warn('Error converting time:', time12h, error);
+      Logger.warn('Error converting time:', time12h, error);
       return time12h;
     }
   };
@@ -100,10 +101,8 @@ const EventManager = () => {
     try {
       const { auth } = await import('../../firebase');
       const currentUser = auth.currentUser;
-      console.log('Current user:', currentUser?.email);
-      console.log('User authenticated:', !!currentUser);
-      
-      const eventTime = `${eventDetails.startTime} - ${eventDetails.endTime}`;
+    Logger.debug('Current user:', currentUser?.email);
+    Logger.debug('User authenticated:', !!currentUser);      const eventTime = `${eventDetails.startTime} - ${eventDetails.endTime}`;
       const currency = currencies.find(c => c.code === eventDetails.currency);
       const formattedPrice = `${currency.symbol}${eventDetails.price}`;
       
@@ -113,11 +112,11 @@ const EventManager = () => {
         price: formattedPrice
       };
       
-      console.log('Updating event details with:', updatedDetails);
+      Logger.debug('Updating event details with:', updatedDetails);
       await realtimeDB.admin.updateEventDetails(updatedDetails);
       setMessage({ type: 'success', text: '🎉 Event details updated successfully!' });
     } catch (error) {
-      console.error('Error updating event details:', error);
+      Logger.error('Error updating event details:', error);
       setMessage({ type: 'error', text: `Failed to update event details: ${error.message}` });
     } finally {
       setSaving(false);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Key, Plus, Lock, Eye, EyeOff, Shield, Trash2, Copy, CheckCircle, Filter, PartyPopper, Sparkles } from 'lucide-react';
 import { realtimeDB, ADMIN_CONFIG } from '../../firebase';
+import Logger from '../../utils/logger';
 
 const TicketKeyGenerator = ({ adminEmail }) => {
   const [accessKeys, setAccessKeys] = useState([]);
@@ -36,7 +37,7 @@ const TicketKeyGenerator = ({ adminEmail }) => {
       const details = await realtimeDB.admin.getEventDetails();
       setEventDetails(details);
     } catch (error) {
-      console.error('Failed to load event details:', error);
+      Logger.error('Failed to load event details:', error);
     }
   };
 
@@ -54,9 +55,7 @@ const TicketKeyGenerator = ({ adminEmail }) => {
   };
 
   const validateAdminPassword = () => {
-    console.log('Validating admin password...');
-    console.log('Entered password:', adminPassword);
-    console.log('Expected password:', ADMIN_CONFIG.adminPassword);
+    // Remove sensitive password logging in production
     
     if (adminPassword === ADMIN_CONFIG.adminPassword) {
       setShowPasswordPrompt(false);
@@ -80,14 +79,14 @@ const TicketKeyGenerator = ({ adminEmail }) => {
   const handleGenerateKey = () => {
     try {
       const newKey = generateRandomKey();
-      console.log('Generated new key:', newKey);
+      Logger.debug('Generated new key:', newKey);
       setNewKeyForm(prev => ({
         ...prev,
         keyCode: newKey
       }));
       setMessage({ type: 'success', text: '🎉 New access key generated successfully!' });
     } catch (error) {
-      console.error('Error generating key:', error);
+      Logger.error('Error generating key:', error);
       setMessage({ type: 'error', text: 'Failed to generate key' });
     }
   };
@@ -113,7 +112,7 @@ const TicketKeyGenerator = ({ adminEmail }) => {
         createdAt: new Date().toISOString()
       };
 
-      console.log('Submitting key data:', keyData);
+      Logger.debug('Submitting key data:', keyData);
       await realtimeDB.admin.generateAccessKey(keyData);
       setMessage({ type: 'success', text: 'Single-use access key created successfully!' });
       
@@ -124,7 +123,7 @@ const TicketKeyGenerator = ({ adminEmail }) => {
       
       await loadAccessKeys();
     } catch (error) {
-      console.error('Error creating access key:', error);
+      Logger.error('Error creating access key:', error);
       setMessage({ type: 'error', text: `Failed to create access key: ${error.message}` });
     } finally {
       setLoading(false);

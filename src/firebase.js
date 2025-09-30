@@ -156,7 +156,7 @@ export const realtimeDB = {
         }
         return tickets;
       } catch (error) {
-        console.error('Error in getAllTickets:', error);
+        // Error already handled by caller
         throw error;
       }
     },

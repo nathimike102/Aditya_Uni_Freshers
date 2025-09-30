@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, Ticket, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
 import { realtimeDB } from '../../firebase';
+import Logger from '../../utils/logger';
 
 const TicketAnalytics = () => {
   const [analytics, setAnalytics] = useState({
@@ -23,9 +24,9 @@ const TicketAnalytics = () => {
     setLoading(true);
     setError('');
     try {
-      console.log('Loading analytics...');
+      Logger.debug('Loading analytics...');
       const allTickets = await realtimeDB.admin.getAllTickets();
-      console.log('All tickets received:', allTickets);
+      Logger.debug('All tickets received:', allTickets);
       
       const totalTickets = allTickets.length;
       const scannedTickets = allTickets.filter(ticket => ticket.isScanned).length;
@@ -59,7 +60,7 @@ const TicketAnalytics = () => {
       
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Error loading analytics:', error);
+      Logger.error('Error loading analytics:', error);
       setError(error.message || 'Failed to load analytics data');
       setAnalytics({
         totalTickets: 0,
