@@ -4,14 +4,14 @@ import { getDatabase, ref, push, set, get, update, query, orderByChild, equalTo 
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: import.meta.env.FIREBASE_API_KEY,
+  authDomain: import.meta.env.FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.FIREBASE_APP_ID,
+  measurementId: import.meta.env.FIREBASE_MEASUREMENT_ID
 };
 
 const app = initializeApp(firebaseConfig);
@@ -45,12 +45,12 @@ const EXTENDED_DEFAULT_EVENT_DETAILS = {
 
 export const ADMIN_CONFIG = {
   adminEmails: [
-    import.meta.env.VITE_ADMIN_EMAIL
+    import.meta.env.ADMIN_EMAIL
   ].filter(Boolean),
-  adminPassword: import.meta.env.VITE_ADMIN_PASSWORD,
+  adminPassword: import.meta.env.ADMIN_PASSWORD,
   
   isAdmin: (email) => {
-    if (!import.meta.env.VITE_ADMIN_EMAIL) {
+    if (!import.meta.env.ADMIN_EMAIL) {
       return false;
     }
     return ADMIN_CONFIG.adminEmails.includes(email?.toLowerCase());
