@@ -2,12 +2,11 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { saveAs } from 'file-saver';
 
-// Convert ticket HTML element to high-quality image
 export const convertTicketToImage = async (ticketElement, options = {}) => {
   try {
     const {
       backgroundColor = '#ffffff',
-      scale = 2, // Higher scale for better quality
+      scale = 2,
       useCORS = true,
       allowTaint = true,
       ...otherOptions
@@ -38,17 +37,15 @@ export const canvasToBlob = (canvas, quality = 0.9) => {
   });
 };
 
-// Convert ticket to PDF and download
 export const downloadTicketAsPDF = async (ticketElement, ticketInfo) => {
   try {
     const canvas = await convertTicketToImage(ticketElement, {
-      backgroundColor: '#1a1a2e', // Match your dark theme
-      scale: 3 // Higher quality for PDF
+      backgroundColor: '#1a1a2e',
+      scale: 3
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
     
-    // Calculate PDF dimensions (A4 size)
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
@@ -57,20 +54,13 @@ export const downloadTicketAsPDF = async (ticketElement, ticketInfo) => {
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    
-    // Calculate image dimensions to fit PDF
     const canvasAspectRatio = canvas.height / canvas.width;
-    const imgWidth = pdfWidth - 20; // 10mm margin on each side
+    const imgWidth = pdfWidth - 20;
     const imgHeight = imgWidth * canvasAspectRatio;
-    
-    // Center the image
     const x = 10;
     const y = Math.max(10, (pdfHeight - imgHeight) / 2);
-
-    // Add the ticket image to PDF
     pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
     
-    // Add metadata
     pdf.setProperties({
       title: `Freshers Welcome 2025 - Ticket ${ticketInfo.id.substring(0, 8)}`,
       subject: 'Event Ticket',
@@ -78,10 +68,7 @@ export const downloadTicketAsPDF = async (ticketElement, ticketInfo) => {
       creator: 'Freshers Event System'
     });
 
-    // Generate filename
     const fileName = `FreshersTicket_${ticketInfo.userName}_${ticketInfo.id.substring(0, 8)}.pdf`;
-    
-    // Save the PDF
     pdf.save(fileName);
     
     return true;
@@ -91,7 +78,6 @@ export const downloadTicketAsPDF = async (ticketElement, ticketInfo) => {
   }
 };
 
-// Share ticket as image on social platforms
 export const shareTicketAsImage = async (ticketElement, ticketInfo, platform = 'native') => {
   try {
     const canvas = await convertTicketToImage(ticketElement, {
@@ -101,7 +87,6 @@ export const shareTicketAsImage = async (ticketElement, ticketInfo, platform = '
 
     const blob = await canvasToBlob(canvas);
     
-    // Create a File object from the blob
     const fileName = `FreshersTicket_${ticketInfo.userName}_${ticketInfo.id.substring(0, 8)}.jpg`;
     const file = new File([blob], fileName, { type: 'image/jpeg' });
 
@@ -111,13 +96,11 @@ export const shareTicketAsImage = async (ticketElement, ticketInfo, platform = '
       files: [file]
     };
 
-    // Use native sharing if supported and platform is native
     if (platform === 'native' && navigator.share && navigator.canShare(shareData)) {
       await navigator.share(shareData);
       return true;
     }
 
-    // Fallback: Download the image for manual sharing
     saveAs(blob, fileName);
     
     return {
@@ -133,7 +116,6 @@ export const shareTicketAsImage = async (ticketElement, ticketInfo, platform = '
   }
 };
 
-// Generate shareable URLs for different platforms
 export const generateShareUrls = (ticketInfo, ticketUrl) => {
   const text = encodeURIComponent(`I'm attending the Freshers Welcome 2025! 🎊\n\nEvent: ${ticketInfo.eventName || 'Freshers Welcome 2025'}\nDate: ${ticketInfo.eventDate || 'Thursday, October 2, 2025'}\nVenue: ${ticketInfo.venue || 'Aditya University'}\n\n#FreshersWelcome2025 #AdityaUniversity`);
   const url = encodeURIComponent(ticketUrl);
@@ -150,7 +132,6 @@ export const generateShareUrls = (ticketInfo, ticketUrl) => {
   };
 };
 
-// Copy ticket link to clipboard
 export const copyTicketLink = async (ticketUrl, ticketInfo) => {
   try {
     const shareText = `Freshers Welcome 2025 🎉\n\nI'm attending the Freshers Welcome event!\n\nTicket: ${ticketUrl}\n\n#FreshersWelcome2025 #AdityaUniversity`;
@@ -158,7 +139,6 @@ export const copyTicketLink = async (ticketUrl, ticketInfo) => {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(shareText);
     } else {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = shareText;
       document.body.appendChild(textArea);
@@ -174,20 +154,18 @@ export const copyTicketLink = async (ticketUrl, ticketInfo) => {
   }
 };
 
-// Generate online ticket verification URL
 export const generateTicketUrl = (ticketId, domain = window.location.origin) => {
   return `${domain}/verify-ticket/${ticketId}`;
 };
 
-// Download image directly without sharing
 export const downloadTicketAsImage = async (ticketElement, ticketInfo) => {
   try {
     const canvas = await convertTicketToImage(ticketElement, {
       backgroundColor: '#1a1a2e',
-      scale: 3 // High quality for download
+      scale: 3
     });
 
-    const blob = await canvasToBlob(canvas, 1.0); // Maximum quality
+    const blob = await canvasToBlob(canvas, 1.0);
     const fileName = `FreshersTicket_${ticketInfo.userName}_${ticketInfo.id.substring(0, 8)}.jpg`;
     
     saveAs(blob, fileName);

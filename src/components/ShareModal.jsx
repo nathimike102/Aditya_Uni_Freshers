@@ -6,8 +6,6 @@ import {
   Copy, 
   FileImage, 
   FileText,
-  MessageCircle,
-  Mail,
   Send,
   ExternalLink,
   Check,
@@ -74,7 +72,6 @@ const ShareModal = ({ isOpen, onClose, ticket, ticketElement }) => {
           showNotification('Failed to copy link', 'error');
         }
       } else {
-        // Open external sharing URL
         window.open(shareUrls[platform], '_blank', 'width=600,height=400');
         showNotification(`Opening ${platform} share...`);
       }

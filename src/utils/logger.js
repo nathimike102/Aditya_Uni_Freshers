@@ -1,4 +1,3 @@
-// Production-ready logging utility
 const isDevelopment = import.meta.env.MODE === 'development';
 
 class Logger {

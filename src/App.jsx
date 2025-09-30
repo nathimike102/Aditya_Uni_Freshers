@@ -43,11 +43,9 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // Auto-logout admin when leaving the website
   useEffect(() => {
     if (user && isAdmin) {
       const handleBeforeUnload = async (event) => {
-        // Try to logout silently when admin leaves the page
         try {
           await signOut(auth);
         } catch (error) {
@@ -57,7 +55,6 @@ function App() {
 
       const handleVisibilityChange = async () => {
         if (document.visibilityState === 'hidden') {
-          // Page is being hidden (tab switch, minimize, etc.)
           try {
             await signOut(auth);
           } catch (error) {
@@ -66,11 +63,8 @@ function App() {
         }
       };
 
-      // Add event listeners
       window.addEventListener('beforeunload', handleBeforeUnload);
       document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      // Cleanup event listeners
       return () => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -92,7 +86,6 @@ function App() {
       setTickets([]);
       setCurrentView('purchase');
       setIsAdmin(false);
-      // Force Login component to remount with fresh, empty form
       setLoginKey(prev => prev + 1);
     } catch (error) {
       console.error('Error signing out:', error);

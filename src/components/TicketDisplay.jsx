@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Download, Share2, Calendar, MapPin, Clock, User, PartyPopper, Sparkles } from 'lucide-react';
+import { Share2, Calendar, MapPin, Clock, User, PartyPopper, Sparkles } from 'lucide-react';
 import { realtimeDB } from '../firebase';
 import ShareModal from './ShareModal';
 import { generateTicketUrl } from '../utils/ticketUtils';
@@ -29,7 +29,6 @@ const TicketDisplay = ({ tickets, user, userName }) => {
       const codes = {};
       for (const ticket of tickets) {
         try {
-          // Generate online ticket URL for QR code
           const ticketUrl = generateTicketUrl(ticket.id);
           
           const qrDataURL = await QRCode.toDataURL(ticketUrl, {

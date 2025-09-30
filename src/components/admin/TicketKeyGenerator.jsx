@@ -55,8 +55,6 @@ const TicketKeyGenerator = ({ adminEmail }) => {
   };
 
   const validateAdminPassword = () => {
-    // Remove sensitive password logging in production
-    
     if (adminPassword === ADMIN_CONFIG.adminPassword) {
       setShowPasswordPrompt(false);
       setAdminPassword('');

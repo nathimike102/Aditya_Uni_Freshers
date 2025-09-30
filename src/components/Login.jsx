@@ -29,18 +29,26 @@ const Login = ({ onLogin }) => {
   }, [error]);
 
   React.useEffect(() => {
-    clearForm();
-    
     const handleRedirectResult = async () => {
       try {
+        setLoading(true);
         const result = await getRedirectResult(auth);
         if (result && result.user) {
+          console.log('Redirect sign-in successful:', result.user.email);
           clearForm();
           onLogin(result.user, result.user.displayName || 'Guest');
         }
       } catch (error) {
         console.error('Redirect result error:', error);
-        setError(`Sign-in failed: ${error.message}`);
+        if (error.code === 'auth/network-request-failed') {
+          setError('Network connection error. Please check your internet and try again.');
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          setError('Sign-in was cancelled. Please try again.');
+        } else {
+          setError(`Sign-in failed: ${error.message}`);
+        }
+      } finally {
+        setLoading(false);
       }
     };
     
@@ -48,23 +56,7 @@ const Login = ({ onLogin }) => {
   }, [onLogin]);
 
   React.useEffect(() => {
-    const handleFocus = () => {
-      clearForm();
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        clearForm();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    clearForm();
   }, []);
 
 
@@ -98,23 +90,33 @@ const Login = ({ onLogin }) => {
     console.log('Starting Google Sign-In...');
 
     try {
-      // Check if we're on mobile or small screen
-      const isMobile = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isMobile = window.innerWidth <= 768 || 
+                      /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                      ('ontouchstart' in window) ||
+                      (navigator.maxTouchPoints > 0);
       
       if (isMobile) {
         console.log('Using redirect method for mobile device');
-        await signInWithRedirect(auth, googleProvider);
-        return; // Redirect will handle the rest
+        setTimeout(async () => {
+          try {
+            await signInWithRedirect(auth, googleProvider);
+          } catch (redirectError) {
+            console.error('Mobile Redirect Sign-In Error:', redirectError);
+            setError('Sign-in failed on mobile. Please try again.');
+            setLoading(false);
+          }
+        }, 100);
+        return;
       }
       
       console.log('Using popup method for desktop');
-      // Try popup first for desktop
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       console.log('Google Sign-In successful:', user.email);
       clearForm();
       onLogin(user, user.displayName || 'Guest');
     } catch (error) {
+      console.error('Google Sign-In Error:', error);
       
       switch (error.code) {
         case 'auth/popup-blocked':
@@ -132,16 +134,27 @@ const Login = ({ onLogin }) => {
           break;
           
         case 'auth/unauthorized-domain':
-          const currentDomain = window.location.hostname + ':' + window.location.port;
-          setError(`Domain "${currentDomain}" is not authorized. Add this domain to Firebase Console → Authentication → Settings → Authorized domains.`);
-          console.log('Current domain that needs to be authorized:', currentDomain);
+          const currentDomain = window.location.hostname;
+          const port = window.location.port ? ':' + window.location.port : '';
+          setError(`Domain "${currentDomain}${port}" is not authorized. Please contact support.`);
+          console.log('Current domain that needs to be authorized:', currentDomain + port);
+          break;
+          
+        case 'auth/network-request-failed':
+          setError('Network error. Please check your internet connection and try again.');
+          break;
+          
+        case 'auth/too-many-requests':
+          setError('Too many failed attempts. Please wait a moment and try again.');
           break;
           
         default:
           setError(`Sign-in failed: ${error.message}`);
       }
     } finally {
-      setLoading(false);
+      if (!isMobile) {
+        setLoading(false);
+      }
     }
   };
 
@@ -173,10 +186,11 @@ const Login = ({ onLogin }) => {
                 placeholder="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20"
+                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20 focus:border-purple-400 touch-manipulation"
                 autoComplete="off"
-                autoCapitalize="off"
+                autoCapitalize="words"
                 spellCheck="false"
+                inputMode="text"
                 required
               />
             </div>
@@ -189,10 +203,11 @@ const Login = ({ onLogin }) => {
               placeholder="Email Address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20 focus:border-purple-400"
-              autoComplete="new-email"
-              autoCapitalize="off"
+              className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20 focus:border-purple-400 touch-manipulation"
+              autoComplete="email"
+              autoCapitalize="none"
               spellCheck="false"
+              inputMode="email"
               required
             />
           </div>
@@ -204,9 +219,9 @@ const Login = ({ onLogin }) => {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20 focus:border-cyan-400"
-              autoComplete="new-password"
-              autoCapitalize="off"
+              className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 backdrop-blur-sm transition-all duration-300 hover:bg-white/15 focus:bg-white/20 focus:border-cyan-400 touch-manipulation"
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              autoCapitalize="none"
               spellCheck="false"
               required
             />
@@ -221,7 +236,7 @@ const Login = ({ onLogin }) => {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary w-full py-4 text-lg font-semibold flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200"
+            className="btn-primary w-full py-4 text-lg font-semibold flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] transition-all duration-200 touch-manipulation active:scale-95"
           >
             {loading ? (
               <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -243,7 +258,7 @@ const Login = ({ onLogin }) => {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border border-white/20"
+          className="w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] border border-white/20 touch-manipulation active:scale-95"
         >
           {loading ? (
             <div className="w-6 h-6 border-2 border-gray-800 border-t-transparent rounded-full animate-spin"></div>

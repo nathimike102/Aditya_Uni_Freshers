@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { 
-  Check, 
-  X, 
+  Check,
   Calendar, 
   MapPin, 
   Clock, 
@@ -44,7 +43,6 @@ const TicketVerification = () => {
     setError('');
 
     try {
-      // Get all tickets and find the one matching the ID
       const allTickets = await realtimeDB.admin.getAllTickets();
       const foundTicket = allTickets.find(t => t.id === ticketId);
 

@@ -21,8 +21,7 @@ export const database = getDatabase(app);
 
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  hd: 'gmail.com'
+  prompt: 'select_account'
 });
 
 googleProvider.addScope('email');
@@ -160,7 +159,6 @@ export const realtimeDB = {
         }
         return tickets;
       } catch (error) {
-        // Error already handled by caller
         throw error;
       }
     },
