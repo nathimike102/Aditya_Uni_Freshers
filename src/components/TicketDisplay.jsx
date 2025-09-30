@@ -1,9 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
-import { Download, Share2, Calendar, MapPin, Clock, User } from 'lucide-react';
+import { Download, Share2, Calendar, MapPin, Clock, User, PartyPopper, Sparkles } from 'lucide-react';
+import { realtimeDB } from '../firebase';
 
-const TicketDisplay = ({ tickets, onScanTicket, onBackToPurchase }) => {
+const TicketDisplay = ({ tickets, user, userName }) => {
   const [qrCodes, setQrCodes] = useState({});
+  const [eventDetails, setEventDetails] = useState(null);
+
+  useEffect(() => {
+    loadEventDetails();
+  }, []);
+
+  const loadEventDetails = async () => {
+    try {
+      const details = await realtimeDB.admin.getEventDetails();
+      setEventDetails(details);
+    } catch (error) {
+
+    }
+  };
 
   useEffect(() => {
     const generateQRCodes = async () => {
@@ -20,7 +35,7 @@ const TicketDisplay = ({ tickets, onScanTicket, onBackToPurchase }) => {
           });
           codes[ticket.id] = qrDataURL;
         } catch (error) {
-          console.error('Error generating QR code:', error);
+
         }
       }
       setQrCodes(codes);
@@ -33,143 +48,191 @@ const TicketDisplay = ({ tickets, onScanTicket, onBackToPurchase }) => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Aditya University Freshers Welcome 2025',
+          title: 'Freshers Welcome 2025',
           text: `My ticket for the Freshers Welcome event! Ticket ID: ${ticket.id.substring(0, 8)}`,
           url: window.location.href
         });
       } catch (error) {
-        console.log('Error sharing:', error);
+
       }
     } else {
-      // Fallback to copying ticket info
-      navigator.clipboard.writeText(`Aditya University Freshers Welcome 2025 - Ticket ID: ${ticket.id}`);
+      navigator.clipboard.writeText(`Freshers Welcome 2025 - Ticket ID: ${ticket.id}`);
       alert('Ticket info copied to clipboard!');
     }
   };
 
   const downloadTicket = (ticket) => {
     const ticketElement = document.getElementById(`ticket-${ticket.id}`);
-    // In a real app, you'd use html2canvas or similar to convert to image
     alert('Download feature would be implemented here');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 p-4">
+    <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="text-center text-white mb-8">
-          <h1 className="text-4xl font-bold mb-4">Your Tickets</h1>
-          <p className="text-xl opacity-90">Save these to your phone and present at the event</p>
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-block relative mb-6">
+            {user?.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.displayName || userName}
+                className="w-24 h-24 rounded-full border-4 border-purple-400/50 animate-glow object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div className={`w-24 h-24 p-4 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-glow flex items-center justify-center ${user?.photoURL ? 'hidden' : 'flex'}`}>
+              <User className="w-12 h-12 text-white animate-float" />
+            </div>
+            <div className="absolute -inset-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur opacity-30 animate-pulse"></div>
+          </div>
+          <h1 className="text-5xl font-bold gradient-text mb-4 animate-slide-right">Your Event Ticket</h1>
+          <p className="text-2xl text-white/90 animate-fade-in">Save this to your phone and present at the event</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {tickets.map((ticket, index) => (
             <div
               key={ticket.id}
               id={`ticket-${ticket.id}`}
-              className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+              className="glass-effect rounded-3xl shadow-2xl overflow-hidden animate-fade-in backdrop-blur-xl"
             >
-              {/* Ticket Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+              <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 p-8 text-white animate-glow">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold mb-1">Aditya University</h2>
-                    <p className="text-blue-100">International Students Community</p>
+                    <h2 className="text-3xl font-bold gradient-text mb-1">Aditya University</h2>
+                    <p className="text-white/80">International Students Community</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-blue-100 text-sm">Ticket #{index + 1}</p>
-                    <p className="text-xs text-blue-200">ID: {ticket.id.substring(0, 8)}</p>
+                    <p className="text-white/70 text-lg">Ticket #{index + 1}</p>
+                    <p className="text-xs text-white/60">ID: {ticket.id.substring(0, 8)}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Ticket Body */}
-              <div className="p-6">
-                <div className="grid md:grid-cols-3 gap-6">
-                  {/* Event Details */}
-                  <div className="md:col-span-2 space-y-4">
-                    <h3 className="text-3xl font-bold text-gray-800 mb-4">
-                      Freshers Welcome 2025
+              <div className="p-8">
+                <div className="grid md:grid-cols-3 gap-8">
+                  <div className="md:col-span-2 space-y-6">
+                    <h3 className="text-4xl font-bold gradient-text mb-6 flex items-center">
+                      <PartyPopper className="w-8 h-8 mr-3 animate-bounce" />
+                      {eventDetails?.eventName || ticket.eventName || 'Freshers Welcome 2025'} ✨
                     </h3>
-                    
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-3">
-                        <User className="w-5 h-5 text-blue-600" />
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          {user?.photoURL ? (
+                            <img
+                              src={user.photoURL}
+                              alt={user.displayName || userName}
+                              className="w-10 h-10 rounded-full border-2 border-purple-400/50 animate-glow object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center animate-glow ${user?.photoURL ? 'hidden' : 'flex'}`}>
+                            <User className="w-6 h-6 text-white animate-float" />
+                          </div>
+                        </div>
                         <div>
-                          <p className="text-sm text-gray-500">Attendee</p>
-                          <p className="font-semibold text-gray-800">{ticket.userName}</p>
+                          <p className="text-base text-white/70">Attendee</p>
+                          <p className="font-semibold text-white text-lg">{user?.displayName || ticket.userName}</p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <Calendar className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-center space-x-4">
+                        <Calendar className="w-6 h-6 text-pink-400 animate-float" />
                         <div>
-                          <p className="text-sm text-gray-500">Date</p>
-                          <p className="font-semibold text-gray-800">February 15, 2025</p>
+                          <p className="text-base text-white/70">Date</p>
+                          <p className="font-semibold text-white text-lg">{eventDetails?.eventDate || ticket.eventDate || 'Thursday, October 2, 2025'}</p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <Clock className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-center space-x-4">
+                        <Clock className="w-6 h-6 text-cyan-400 animate-float" />
                         <div>
-                          <p className="text-sm text-gray-500">Time</p>
-                          <p className="font-semibold text-gray-800">6:00 PM - 10:00 PM</p>
+                          <p className="text-base text-white/70">Time</p>
+                          <p className="font-semibold text-white text-lg">{eventDetails?.eventTime || ticket.eventTime || '12:00 PM - 6:00 PM'}</p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center space-x-3">
-                        <MapPin className="w-5 h-5 text-blue-600" />
+                      <div className="flex items-center space-x-4">
+                        <MapPin className="w-6 h-6 text-green-400 animate-float" />
                         <div>
-                          <p className="text-sm text-gray-500">Venue</p>
-                          <p className="font-semibold text-gray-800">Main Auditorium</p>
+                          <p className="text-base text-white/70">Venue</p>
+                          <p className="font-semibold text-white text-lg">{eventDetails?.venue || ticket.venue || 'Mysterious Location'} 🎭</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">Important Notes:</h4>
-                      <ul className="text-sm text-yellow-700 space-y-1">
+                    <div className="glass-effect border border-orange-300/30 rounded-xl p-4 mt-4 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 via-transparent to-yellow-500/10 animate-pulse"></div>
+                      <div className="relative z-10 text-center">
+                        <p className="text-orange-200 text-sm flex items-center justify-center">
+                          <Sparkles className="w-4 h-4 mr-1 animate-spin" />
+                          Ticket Price
+                        </p>
+                        <p className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-yellow-400 bg-clip-text text-transparent">
+                          {eventDetails?.price || ticket.price || '₹300 INR'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="glass-effect border border-yellow-300/30 rounded-xl p-6 mt-6">
+                      <h4 className="font-semibold text-yellow-200 mb-3 gradient-text">Important Notes:</h4>
+                      <ul className="text-base text-yellow-100 space-y-2">
                         <li>• Present this QR code at the entrance</li>
                         <li>• Arrive 30 minutes before the event</li>
                         <li>• Ticket expires after scanning</li>
-                        <li>• Smart casual dress code</li>
+                        <li>• {eventDetails?.dressCode || 'Smart Casual'} dress code</li>
                       </ul>
+                    </div>
+
+                    <div className="glass-effect border border-purple-300/30 rounded-xl p-4 mt-4 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 animate-pulse"></div>
+                      <div className="relative z-10">
+                        <h3 className="font-semibold text-purple-300 mb-2 flex items-center">
+                          <PartyPopper className="w-5 h-5 mr-2 animate-bounce" />
+                          Event Description
+                          <Sparkles className="w-4 h-4 ml-2 animate-pulse" />
+                        </h3>
+                        <p className="text-gray-300 text-sm leading-relaxed">
+                          {eventDetails?.description || "Join us for an unforgettable Freshers' Party! Dance, music, games, and lots of fun await you. Don't miss this amazing opportunity to connect with your fellow classmates and create memories that will last a lifetime."}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* QR Code */}
                   <div className="text-center">
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="glass-effect p-6 rounded-xl border border-white/20">
                       {qrCodes[ticket.id] ? (
                         <img
                           src={qrCodes[ticket.id]}
                           alt="QR Code"
-                          className="mx-auto mb-2"
+                          className="mx-auto mb-3 animate-glow"
                         />
                       ) : (
-                        <div className="w-[200px] h-[200px] bg-gray-200 rounded-lg flex items-center justify-center mx-auto mb-2">
-                          <p className="text-gray-500">Generating QR...</p>
+                        <div className="w-[200px] h-[200px] bg-white/10 rounded-xl flex items-center justify-center mx-auto mb-3 animate-pulse">
+                          <p className="text-white/70">Generating QR...</p>
                         </div>
                       )}
-                      <p className="text-xs text-gray-500">Scan to enter event</p>
+                      <p className="text-sm text-white/60">Scan to enter event</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Ticket Actions */}
-                <div className="flex flex-wrap gap-3 mt-6 pt-6 border-t border-gray-200">
+                <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-white/20">
                   <button
                     onClick={() => shareTicket(ticket)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    className="btn-secondary flex items-center space-x-3 hover:scale-105 transition-transform"
                   >
-                    <Share2 className="w-4 h-4" />
+                    <Share2 className="w-5 h-5" />
                     <span>Share</span>
                   </button>
-                  
                   <button
                     onClick={() => downloadTicket(ticket)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
+                    className="btn-secondary flex items-center space-x-3 hover:scale-105 transition-transform"
                   >
-                    <Download className="w-4 h-4" />
+                    <Download className="w-5 h-5" />
                     <span>Download</span>
                   </button>
                 </div>
@@ -178,21 +241,25 @@ const TicketDisplay = ({ tickets, onScanTicket, onBackToPurchase }) => {
           ))}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 mt-8 justify-center">
-          <button
-            onClick={onBackToPurchase}
-            className="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Purchase More Tickets
-          </button>
-          
-          <button
-            onClick={onScanTicket}
-            className="px-6 py-3 bg-yellow-500 text-white font-semibold rounded-lg hover:bg-yellow-600 transition-colors"
-          >
-            Scan QR Code
-          </button>
+        <div className="text-center mt-12">
+          <div className="glass-effect rounded-2xl p-8 border border-white/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 animate-pulse"></div>
+            <div className="relative z-10">
+              <h3 className="text-2xl font-bold gradient-text mb-4 flex items-center justify-center">
+                <PartyPopper className="w-6 h-6 mr-2 animate-bounce" />
+                Your Event Ticket
+                <Sparkles className="w-5 h-5 ml-2 animate-spin" />
+              </h3>
+              <p className="text-white/80 text-lg mb-4">
+                🎉 You're all set for the {eventDetails?.eventName || 'Freshers Welcome 2025'}! 🎉
+              </p>
+              <div className="space-y-2 text-white/70">
+                <p>✅ Present this QR code at the event entrance</p>
+                <p>📱 Save this page or take a screenshot</p>
+                <p>🎫 One ticket per student - Entry guaranteed!</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
