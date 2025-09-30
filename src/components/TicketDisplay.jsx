@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Download, Share2, Calendar, MapPin, Clock, User, PartyPopper, Sparkles } from 'lucide-react';
 import { realtimeDB } from '../firebase';
+import ShareModal from './ShareModal';
+import { generateTicketUrl } from '../utils/ticketUtils';
 
 const TicketDisplay = ({ tickets, user, userName }) => {
   const [qrCodes, setQrCodes] = useState({});
   const [eventDetails, setEventDetails] = useState(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   useEffect(() => {
     loadEventDetails();
@@ -25,7 +29,10 @@ const TicketDisplay = ({ tickets, user, userName }) => {
       const codes = {};
       for (const ticket of tickets) {
         try {
-          const qrDataURL = await QRCode.toDataURL(ticket.qrData, {
+          // Generate online ticket URL for QR code
+          const ticketUrl = generateTicketUrl(ticket.id);
+          
+          const qrDataURL = await QRCode.toDataURL(ticketUrl, {
             width: 200,
             margin: 2,
             color: {
@@ -35,7 +42,7 @@ const TicketDisplay = ({ tickets, user, userName }) => {
           });
           codes[ticket.id] = qrDataURL;
         } catch (error) {
-
+          console.error('Error generating QR code:', error);
         }
       }
       setQrCodes(codes);
@@ -44,26 +51,14 @@ const TicketDisplay = ({ tickets, user, userName }) => {
     generateQRCodes();
   }, [tickets]);
 
-  const shareTicket = async (ticket) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Freshers Welcome 2025',
-          text: `My ticket for the Freshers Welcome event! Ticket ID: ${ticket.id.substring(0, 8)}`,
-          url: window.location.href
-        });
-      } catch (error) {
-
-      }
-    } else {
-      navigator.clipboard.writeText(`Freshers Welcome 2025 - Ticket ID: ${ticket.id}`);
-      alert('Ticket info copied to clipboard!');
-    }
+  const openShareModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setShareModalOpen(true);
   };
 
-  const downloadTicket = (ticket) => {
-    const ticketElement = document.getElementById(`ticket-${ticket.id}`);
-    alert('Download feature would be implemented here');
+  const closeShareModal = () => {
+    setShareModalOpen(false);
+    setSelectedTicket(null);
   };
 
   return (
@@ -222,18 +217,11 @@ const TicketDisplay = ({ tickets, user, userName }) => {
 
                 <div className="flex flex-wrap gap-4 mt-8 pt-8 border-t border-white/20">
                   <button
-                    onClick={() => shareTicket(ticket)}
+                    onClick={() => openShareModal(ticket)}
                     className="btn-secondary flex items-center space-x-3 hover:scale-105 transition-transform"
                   >
                     <Share2 className="w-5 h-5" />
-                    <span>Share</span>
-                  </button>
-                  <button
-                    onClick={() => downloadTicket(ticket)}
-                    className="btn-secondary flex items-center space-x-3 hover:scale-105 transition-transform"
-                  >
-                    <Download className="w-5 h-5" />
-                    <span>Download</span>
+                    <span>Share & Download</span>
                   </button>
                 </div>
               </div>
@@ -261,6 +249,16 @@ const TicketDisplay = ({ tickets, user, userName }) => {
             </div>
           </div>
         </div>
+
+        {/* Share Modal */}
+        {shareModalOpen && selectedTicket && (
+          <ShareModal
+            isOpen={shareModalOpen}
+            onClose={closeShareModal}
+            ticket={selectedTicket}
+            ticketElement={document.getElementById(`ticket-${selectedTicket.id}`)}
+          />
+        )}
       </div>
     </div>
   );
