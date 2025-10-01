@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth';
 import { auth, realtimeDB, authReady } from '../firebase';
 import { User, Mail, Lock, UserPlus, LogIn, PartyPopper, Sparkles } from 'lucide-react';
+import Footer from './Footer';
 
 const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -157,8 +158,9 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="glass-effect rounded-3xl shadow-2xl p-10 w-full max-w-md animate-fade-in backdrop-blur-xl border border-purple-400/30 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-1 flex items-center justify-center p-4">
+        <div className="glass-effect rounded-3xl shadow-2xl p-10 w-full max-w-md animate-fade-in backdrop-blur-xl border border-purple-400/30 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-transparent to-cyan-500/10 animate-pulse"></div>
         <div className="relative z-10">
           <div className="text-center mb-8">
@@ -255,8 +257,10 @@ const Login = ({ onLogin }) => {
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>
         </div>
+          </div>
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 };

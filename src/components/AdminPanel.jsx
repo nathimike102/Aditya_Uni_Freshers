@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Settings, Key, QrCode, Users, BarChart3, Shield } from 'lucide-react';
+import Footer from './Footer';
 import EventManager from './admin/EventManager';
 import TicketKeyGenerator from './admin/TicketKeyGenerator';
 import AdminQRScanner from './admin/AdminQRScanner';
@@ -31,7 +32,7 @@ const AdminPanel = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <header className="glass-effect border-b border-white/20 p-6 animate-slide-right">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-4">
@@ -78,8 +79,9 @@ const AdminPanel = ({ user, onLogout }) => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="grid lg:grid-cols-4 gap-6">
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto p-6">
+          <div className="grid lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1">
             <div className="glass-effect rounded-xl p-6 space-y-2 border border-purple-400/20">
               <h2 className="text-lg font-semibold gradient-text mb-4 flex items-center">
@@ -117,8 +119,10 @@ const AdminPanel = ({ user, onLogout }) => {
               </div>
             </div>
           </div>
+          </div>
         </div>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 };

@@ -5,6 +5,7 @@ import Login from './components/Login';
 import TicketPurchase from './components/TicketPurchase';
 import TicketDisplay from './components/TicketDisplay';
 import AdminPanel from './components/AdminPanel';
+import Footer from './components/Footer';
 import { LogOut, User } from 'lucide-react';
 
 function App() {
@@ -156,7 +157,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <header className="glass-effect sticky top-0 z-50 animate-slide-right">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -193,7 +194,7 @@ function App() {
         </div>
       </header>
 
-      <main>
+      <main className="flex-1">
         {currentView === 'purchase' && (
           <TicketPurchase
             user={user}
@@ -211,6 +212,7 @@ function App() {
           />
         )}
       </main>
+      <Footer />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, QrCode, CheckCircle, XCircle, Clock, User, MapPin, Scan, X } from 'lucide-react';
 import { realtimeDB } from '../../firebase';
 import jsQR from 'jsqr';
@@ -11,19 +11,13 @@ const AdminQRScanner = ({ adminEmail }) => {
   const [recentScans, setRecentScans] = useState([]);
   const [eventTiming, setEventTiming] = useState(null);
   const [cameraMode, setCameraMode] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState('');
+  const [previewReady, setPreviewReady] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
-
-  useEffect(() => {
-    loadEventDetails();
-    loadRecentScans();
-    
-    return () => {
-      stopCamera();
-    };
-  }, []);
+  const previewFrameRef = useRef(null);
 
   const loadEventDetails = async () => {
     try {
@@ -57,61 +51,204 @@ const AdminQRScanner = ({ adminEmail }) => {
     return true;
   };
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        } 
-      });
-      
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      
-      setCameraMode(true);
-      setScanning(true);
-      
-      scanIntervalRef.current = setInterval(scanQRFromCamera, 100);
-      
-    } catch (error) {
-      setScanResult({
-        type: 'error',
-        message: 'Camera access denied or not available'
-      });
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
+  const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) {
       clearInterval(scanIntervalRef.current);
       scanIntervalRef.current = null;
     }
-    
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+      videoRef.current.onloadeddata = null;
+    }
+
+    if (previewFrameRef.current) {
+      cancelAnimationFrame(previewFrameRef.current);
+      previewFrameRef.current = null;
+    }
+
     setCameraMode(false);
     setScanning(false);
+    setCameraStatus('');
+    setPreviewReady(false);
+  }, []);
+
+  useEffect(() => {
+    loadEventDetails();
+    loadRecentScans();
+    
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
+
+  const awaitVideoReady = (videoEl) => new Promise((resolve) => {
+    if (!videoEl) {
+      resolve();
+      return;
+    }
+
+    const handleLoaded = () => {
+      videoEl.removeEventListener('loadedmetadata', handleLoaded);
+      resolve();
+    };
+
+    if (videoEl.readyState >= 1) {
+      resolve();
+    } else {
+      videoEl.addEventListener('loadedmetadata', handleLoaded);
+    }
+  });
+
+  const renderPreviewFrame = useCallback(() => {
+    if (!videoRef.current || !canvasRef.current) {
+      previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
+      return;
+    }
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    }
+
+    previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      stopCamera();
+      setScanResult(null);
+      setCameraStatus('Initializing camera…');
+      setPreviewReady(false);
+
+      const constraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        const videoEl = videoRef.current;
+        videoEl.srcObject = stream;
+        videoEl.muted = true;
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
+        videoEl.setAttribute('playsinline', 'true');
+        videoEl.setAttribute('autoplay', 'true');
+
+        await awaitVideoReady(videoEl);
+
+        setCameraStatus('Waiting for camera preview…');
+
+        await new Promise((resolve, reject) => {
+          let settled = false;
+
+          const cleanup = () => {
+            settled = true;
+            videoEl.removeEventListener('playing', handlePlaying);
+            videoEl.removeEventListener('loadeddata', handleLoadedData);
+            videoEl.removeEventListener('error', handleError);
+            clearInterval(fallbackCheck);
+          };
+
+          const handlePlaying = () => {
+            if (settled) return;
+            cleanup();
+            resolve();
+          };
+
+          const handleLoadedData = () => {
+            if (settled) return;
+            if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
+              cleanup();
+              resolve();
+            }
+          };
+
+          const handleError = (event) => {
+            if (settled) return;
+            cleanup();
+            reject(event instanceof Error ? event : new Error('Unable to start camera preview.'));
+          };
+
+          const fallbackCheck = setInterval(() => {
+            if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
+              handlePlaying();
+            }
+          }, 150);
+
+          videoEl.addEventListener('playing', handlePlaying, { once: true });
+          videoEl.addEventListener('loadeddata', handleLoadedData);
+          videoEl.addEventListener('error', handleError, { once: true });
+
+          const playPromise = videoEl.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch((err) => {
+              if (settled) return;
+              cleanup();
+              reject(err);
+            });
+          }
+        });
+
+        setPreviewReady(true);
+        previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
+      }
+
+      setCameraMode(true);
+      setScanning(true);
+      setCameraStatus('Camera ready – scanning…');
+
+      scanIntervalRef.current = setInterval(scanQRFromCamera, 200);
+
+    } catch (error) {
+      console.error('Camera error:', error);
+      stopCamera();
+      setPreviewReady(false);
+      setScanResult({
+        type: 'error',
+        message: error.message || 'Camera access denied or not available'
+      });
+    }
   };
 
   const scanQRFromCamera = () => {
-    if (!videoRef.current || !canvasRef.current || !scanning) return;
+    if (!videoRef.current || !canvasRef.current || !scanning || !previewReady) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) {
+      return;
+    }
 
-    context.drawImage(video, 0, 0);
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     try {
       const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
@@ -221,21 +358,27 @@ const AdminQRScanner = ({ adminEmail }) => {
           <div className="space-y-4">
           {cameraMode ? (
             <div className="space-y-4">
-              <div className="relative">
+              <div className="relative w-full max-w-md mx-auto aspect-video">
                 <video
                   ref={videoRef}
-                  className="w-full max-w-md mx-auto rounded-lg border-2 border-purple-400/50"
+                  className="absolute inset-0 w-px h-px opacity-0 pointer-events-none"
                   autoPlay
                   playsInline
                   muted
                 />
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-lg animate-pulse pointer-events-none">
+                <canvas
+                  ref={canvasRef}
+                  className={`absolute inset-0 w-full h-full rounded-lg border-2 border-purple-400/50 bg-black/70 transition-opacity duration-300 ${previewReady ? 'opacity-100' : 'opacity-0'}`}
+                />
+                <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-lg animate-pulse pointer-events-none z-20">
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                     <div className="w-48 h-48 border-2 border-white/50 rounded-lg border-dashed animate-bounce"></div>
                   </div>
                 </div>
               </div>
+              {cameraStatus && (
+                <p className="text-center text-white/70 text-sm">{cameraStatus}</p>
+              )}
               <div className="flex justify-center space-x-4">
                 <button
                   onClick={stopCamera}

@@ -30,7 +30,6 @@ export const convertTicketToImage = async (ticketElement, options = {}) => {
   }
 };
 
-// Convert canvas to blob for sharing
 export const canvasToBlob = (canvas, quality = 0.9) => {
   return new Promise((resolve) => {
     canvas.toBlob(resolve, 'image/jpeg', quality);
