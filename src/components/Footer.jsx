@@ -13,7 +13,7 @@ const Footer = () => {
       <footer>
         <div className="relative z-10 border-t border-white/10 bg-black/20">
           <div className="mx-auto px-6 py-4 items-center text-center text-sm text-white/60">
-            <p>© {currentYear} Ghost All rights reserved.</p>
+            <p>© {currentYear} Ghost. All rights reserved.</p>
           </div>
         </div>
       </footer>

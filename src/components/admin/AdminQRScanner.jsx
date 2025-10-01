@@ -17,7 +17,6 @@ const AdminQRScanner = ({ adminEmail }) => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
-  const previewFrameRef = useRef(null);
 
   const loadEventDetails = async () => {
     try {
@@ -26,7 +25,7 @@ const AdminQRScanner = ({ adminEmail }) => {
         setEventTiming(details);
       }
     } catch (error) {
-
+      console.error('Failed to load event details', error);
     }
   };
 
@@ -39,15 +38,13 @@ const AdminQRScanner = ({ adminEmail }) => {
         .slice(0, 10);
       setRecentScans(scannedTickets);
     } catch (error) {
-
+      console.error('Failed to load recent scans', error);
     }
   };
 
   const isEventTime = () => {
     if (!eventTiming?.eventDate || !eventTiming?.eventTime) return true;
 
-    const now = new Date();
-    const eventDate = eventTiming.eventDate;
     return true;
   };
 
@@ -66,11 +63,6 @@ const AdminQRScanner = ({ adminEmail }) => {
       videoRef.current.pause();
       videoRef.current.srcObject = null;
       videoRef.current.onloadeddata = null;
-    }
-
-    if (previewFrameRef.current) {
-      cancelAnimationFrame(previewFrameRef.current);
-      previewFrameRef.current = null;
     }
 
     setCameraMode(false);
@@ -105,28 +97,6 @@ const AdminQRScanner = ({ adminEmail }) => {
       videoEl.addEventListener('loadedmetadata', handleLoaded);
     }
   });
-
-  const renderPreviewFrame = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) {
-      previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
-      return;
-    }
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-      }
-
-      const context = canvas.getContext('2d');
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    }
-
-    previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
-  }, []);
 
   const startCamera = async () => {
     try {
@@ -212,7 +182,6 @@ const AdminQRScanner = ({ adminEmail }) => {
         });
 
         setPreviewReady(true);
-        previewFrameRef.current = requestAnimationFrame(renderPreviewFrame);
       }
 
       setCameraMode(true);
@@ -261,6 +230,7 @@ const AdminQRScanner = ({ adminEmail }) => {
         handleScan(ticketData);
       }
     } catch (error) {
+      console.error('Failed to process camera frame', error);
     }
   };
 
@@ -358,17 +328,17 @@ const AdminQRScanner = ({ adminEmail }) => {
           <div className="space-y-4">
           {cameraMode ? (
             <div className="space-y-4">
-              <div className="relative w-full max-w-md mx-auto aspect-video">
+              <div className="relative w-full max-w-md mx-auto scanner-preview">
                 <video
                   ref={videoRef}
-                  className="absolute inset-0 w-px h-px opacity-0 pointer-events-none"
+                  className={`absolute inset-0 w-full h-full rounded-lg object-cover bg-black/70 transition-opacity duration-300 ${previewReady ? 'opacity-100' : 'opacity-50'}`}
                   autoPlay
                   playsInline
                   muted
                 />
                 <canvas
                   ref={canvasRef}
-                  className={`absolute inset-0 w-full h-full rounded-lg border-2 border-purple-400/50 bg-black/70 transition-opacity duration-300 ${previewReady ? 'opacity-100' : 'opacity-0'}`}
+                  className="hidden"
                 />
                 <div className="absolute inset-0 border-2 border-cyan-400/50 rounded-lg animate-pulse pointer-events-none z-20">
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
