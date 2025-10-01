@@ -17,6 +17,8 @@ const AdminQRScanner = ({ adminEmail }) => {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+  const scanningRef = useRef(false);
+  const previewReadyRef = useRef(false);
 
   const loadEventDetails = async () => {
     try {
@@ -69,6 +71,8 @@ const AdminQRScanner = ({ adminEmail }) => {
     setScanning(false);
     setCameraStatus('');
     setPreviewReady(false);
+    scanningRef.current = false;
+    previewReadyRef.current = false;
   }, []);
 
   useEffect(() => {
@@ -129,6 +133,8 @@ const AdminQRScanner = ({ adminEmail }) => {
       setScanResult(null);
       setCameraStatus('Initializing camera…');
       setPreviewReady(false);
+      scanningRef.current = false;
+      previewReadyRef.current = false;
 
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera access is not supported in this browser.');
@@ -214,8 +220,10 @@ const AdminQRScanner = ({ adminEmail }) => {
       });
 
       setPreviewReady(true);
+  previewReadyRef.current = true;
 
       setScanning(true);
+  scanningRef.current = true;
       setCameraStatus('Camera ready – scanning…');
 
       scanIntervalRef.current = setInterval(scanQRFromCamera, 200);
@@ -232,7 +240,7 @@ const AdminQRScanner = ({ adminEmail }) => {
   };
 
   const scanQRFromCamera = () => {
-    if (!videoRef.current || !canvasRef.current || !scanning || !previewReady) return;
+  if (!videoRef.current || !canvasRef.current || !scanningRef.current || !previewReadyRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -263,6 +271,14 @@ const AdminQRScanner = ({ adminEmail }) => {
       console.error('Failed to process camera frame', error);
     }
   };
+
+  useEffect(() => {
+    scanningRef.current = scanning;
+  }, [scanning]);
+
+  useEffect(() => {
+    previewReadyRef.current = previewReady;
+  }, [previewReady]);
 
   const handleScan = async (scannedTicketId = null) => {
     const targetTicketId = scannedTicketId || ticketId;
@@ -473,6 +489,17 @@ const AdminQRScanner = ({ adminEmail }) => {
                       {scanResult.ticket.scanLocation}
                     </p>
                   </div>
+                </div>
+              )}
+              {!cameraMode && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={startCamera}
+                    className="glass-effect px-4 py-2 rounded-lg border border-cyan-400/40 text-cyan-300 hover:bg-cyan-400/20 transition-all flex items-center space-x-2"
+                  >
+                    <Scan className="w-4 h-4" />
+                    <span>Scan Next Ticket</span>
+                  </button>
                 </div>
               )}
             </div>
