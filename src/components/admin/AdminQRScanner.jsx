@@ -98,12 +98,41 @@ const AdminQRScanner = ({ adminEmail }) => {
     }
   });
 
+  const waitForVideoElement = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      const maxWaitMs = 2000;
+      const start = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+      const poll = () => {
+        const node = videoRef.current;
+        if (node) {
+          resolve(node);
+          return;
+        }
+
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+        if (now - start >= maxWaitMs) {
+          reject(new Error('Unable to initialize camera preview.'));
+          return;
+        }
+
+        requestAnimationFrame(poll);
+      };
+
+      poll();
+    });
+  }, []);
+
   const startCamera = async () => {
     try {
       stopCamera();
       setScanResult(null);
       setCameraStatus('Initializing camera…');
       setPreviewReady(false);
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser.');
+      }
 
       const constraints = {
         video: {
@@ -117,74 +146,75 @@ const AdminQRScanner = ({ adminEmail }) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
-      if (videoRef.current) {
-        const videoEl = videoRef.current;
-        videoEl.srcObject = stream;
-        videoEl.muted = true;
-        videoEl.autoplay = true;
-        videoEl.playsInline = true;
-        videoEl.setAttribute('playsinline', 'true');
-        videoEl.setAttribute('autoplay', 'true');
+      setCameraMode(true);
+      setCameraStatus('Preparing camera preview…');
 
-        await awaitVideoReady(videoEl);
+      const videoEl = await waitForVideoElement();
 
-        setCameraStatus('Waiting for camera preview…');
+      videoEl.srcObject = stream;
+      videoEl.muted = true;
+      videoEl.autoplay = true;
+      videoEl.playsInline = true;
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('autoplay', 'true');
 
-        await new Promise((resolve, reject) => {
-          let settled = false;
+      await awaitVideoReady(videoEl);
 
-          const cleanup = () => {
-            settled = true;
-            videoEl.removeEventListener('playing', handlePlaying);
-            videoEl.removeEventListener('loadeddata', handleLoadedData);
-            videoEl.removeEventListener('error', handleError);
-            clearInterval(fallbackCheck);
-          };
+      setCameraStatus('Waiting for camera preview…');
 
-          const handlePlaying = () => {
-            if (settled) return;
+      await new Promise((resolve, reject) => {
+        let settled = false;
+
+        const cleanup = () => {
+          settled = true;
+          videoEl.removeEventListener('playing', handlePlaying);
+          videoEl.removeEventListener('loadeddata', handleLoadedData);
+          videoEl.removeEventListener('error', handleError);
+          clearInterval(fallbackCheck);
+        };
+
+        const handlePlaying = () => {
+          if (settled) return;
+          cleanup();
+          resolve();
+        };
+
+        const handleLoadedData = () => {
+          if (settled) return;
+          if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
             cleanup();
             resolve();
-          };
+          }
+        };
 
-          const handleLoadedData = () => {
-            if (settled) return;
-            if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
-              cleanup();
-              resolve();
-            }
-          };
+        const handleError = (event) => {
+          if (settled) return;
+          cleanup();
+          reject(event instanceof Error ? event : new Error('Unable to start camera preview.'));
+        };
 
-          const handleError = (event) => {
+        const fallbackCheck = setInterval(() => {
+          if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
+            handlePlaying();
+          }
+        }, 150);
+
+        videoEl.addEventListener('playing', handlePlaying, { once: true });
+        videoEl.addEventListener('loadeddata', handleLoadedData);
+        videoEl.addEventListener('error', handleError, { once: true });
+
+        const playPromise = videoEl.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch((err) => {
             if (settled) return;
             cleanup();
-            reject(event instanceof Error ? event : new Error('Unable to start camera preview.'));
-          };
+            reject(err);
+          });
+        }
+      });
 
-          const fallbackCheck = setInterval(() => {
-            if (videoEl.readyState >= videoEl.HAVE_CURRENT_DATA && videoEl.videoWidth > 0) {
-              handlePlaying();
-            }
-          }, 150);
+      setPreviewReady(true);
 
-          videoEl.addEventListener('playing', handlePlaying, { once: true });
-          videoEl.addEventListener('loadeddata', handleLoadedData);
-          videoEl.addEventListener('error', handleError, { once: true });
-
-          const playPromise = videoEl.play();
-          if (playPromise && typeof playPromise.catch === 'function') {
-            playPromise.catch((err) => {
-              if (settled) return;
-              cleanup();
-              reject(err);
-            });
-          }
-        });
-
-        setPreviewReady(true);
-      }
-
-      setCameraMode(true);
       setScanning(true);
       setCameraStatus('Camera ready – scanning…');
 
