@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getDatabase, ref, push, set, get, update, query, orderByChild, equalTo } from 'firebase/database';
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported as isAnalyticsSupported } from 'firebase/analytics';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,16 +16,30 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const analytics = getAnalytics(app);
-export const database = getDatabase(app);
 
-export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
+export const authReady = setPersistence(auth, browserLocalPersistence)
+  .catch((error) => {
+    console.error('Failed to set auth persistence:', error);
+    return null;
+  });
+
+export const analyticsPromise = isAnalyticsSupported().then((supported) => {
+  if (!supported) {
+    return null;
+  }
+  return getAnalytics(app);
+}).catch((error) => {
+  console.warn('Analytics not available:', error);
+  return null;
 });
 
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
+export let analytics = null;
+analyticsPromise.then((instance) => {
+  analytics = instance;
+}).catch(() => {
+  analytics = null;
+});
+export const database = getDatabase(app);
 
 const DEFAULT_EVENT_DETAILS = {
   eventName: 'Freshers Welcome 2025',

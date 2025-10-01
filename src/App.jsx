@@ -188,7 +188,7 @@ function App() {
             className="btn-secondary flex items-center space-x-2 hover:scale-105 transition-transform"
           >
             <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            <span className="hidden md:inline">Logout</span>
           </button>
         </div>
       </header>

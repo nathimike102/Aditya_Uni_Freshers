@@ -355,11 +355,11 @@ const TicketKeyGenerator = ({ adminEmail }) => {
                   </div>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-4 mb-3">
+                <div className="grid md:grid-cols-6 gap-4 mb-3">
                   <div>
                     <p className="text-slate-400 text-sm">Key Code</p>
-                    <div className="flex items-center space-x-2">
-                      <code className="text-blue-300 font-mono bg-blue-900/20 px-2 py-1 rounded">
+                    <div className="flex items-center space-x-6">
+                      <code className="text-blue-300 font-mono bg-blue-900/20 px-4 py-1 rounded">
                         {key.keyCode}
                       </code>
                       <button
@@ -375,7 +375,7 @@ const TicketKeyGenerator = ({ adminEmail }) => {
                     </div>
                   </div>
                   
-                  <div>
+                  <div className="grid md:grid-cols-2 gap-4 md:col-span-2"> 
                     <p className="text-slate-400 text-sm">Usage</p>
                     <p className="text-white">{key.usedCount || 0} / {key.maxUses}</p>
                   </div>
